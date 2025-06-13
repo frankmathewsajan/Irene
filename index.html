@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Fairy Mode -->
+        <div id="fairy-mode" class="mode active">
+            <div class="fairy-container">
+                <img src="fairy.png" alt="" class="fairy-image" id="fairy-img">
+                <div class="glow-effect"></div>
+            </div>
+        </div>        <!-- Chat Mode -->
+        <div id="chat-mode" class="mode">
+            <div class="chat-header">
+                <button class="new-chat-btn" id="new-chat-btn" title="Start New Chat">📝</button>
+                <button class="minimize-btn" id="minimize-btn" title="Minimize">−</button>
+            </div>
+            
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="message bot-message">
+                        <div class="message-content">
+                            <span class="message-text">Hello! I'm BuzzleBee, your magical assistant! ✨</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input-container">
+                    <input type="text" id="chat-input" placeholder="Type your message..." autofocus>
+                </div>
+            </div>
+        </div>    </div>
+    
+    <script src="parser.js"></script>
+    <script src="renderer.js"></script>
+</body>
+</html>
