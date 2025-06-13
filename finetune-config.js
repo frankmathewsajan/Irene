@@ -18,15 +18,14 @@ class FineTuneConfig {
         }
     }setDefaults() {
         this.config = {
-            GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY',
-            SYSTEM_PROMPT_BEFORE: "You are BuzzleBee, a magical fairy assistant. Be helpful and friendly.",
-            CONTEXT_AFTER: "Please respond as BuzzleBee the fairy assistant.",
+            GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY',            SYSTEM_PROMPT_BEFORE: "You are Irene, a magical fairy assistant. Be helpful and friendly.",
+            CONTEXT_AFTER: "Please respond as Irene the fairy assistant.",
             MAX_RESPONSE_LENGTH: "500",
             FALLBACK_RESPONSE: "Oh my! Something magical went wrong! ✨ Please try again! 🧚‍♀️",
             AI_TEMPERATURE: "0.7",
             AI_TOP_P: "0.8",
             AI_TOP_K: "40",
-            COMMAND_OUTPUT_PARSER_PROMPT: "You are BuzzleBee, a magical assistant. Please explain this command output in a friendly way.",
+            COMMAND_OUTPUT_PARSER_PROMPT: "You are Irene, a magical assistant. Please explain this command output in a friendly way.",
             CONVERSATION_SUMMARY_PROMPT: "Please summarize the conversation so far concisely."
         };
     }
@@ -81,7 +80,7 @@ class FineTuneConfig {
     }
 
     getCommandOutputParserPrompt() {
-        return this.config.COMMAND_OUTPUT_PARSER_PROMPT || "You are BuzzleBee, a magical assistant. Please explain this command output in a friendly way.";
+        return this.config.COMMAND_OUTPUT_PARSER_PROMPT || "You are Irene, a magical assistant. Please explain this command output in a friendly way.";
     }
 
     getConversationSummaryPrompt() {

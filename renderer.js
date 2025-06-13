@@ -1,4 +1,4 @@
-class BuzzleBeeApp {
+class IreneApp {
     constructor() {
         this.isExpanded = false;
         this.parser = new ResponseParser();
@@ -513,7 +513,7 @@ Please analyze this output and explain what it means in a friendly, human-readab
 3. Any important information or patterns in the output
 4. Whether everything looks normal or if there are any concerns
 
-Respond as BuzzleBee in a magical, helpful way! ✨🧚‍♀️`;
+Respond as Irene in a magical, helpful way! ✨🧚‍♀️`;
             } else {
                 const errorText = result.error || result.stderr || 'Unknown error occurred';
                 // Truncate long error messages too
@@ -535,7 +535,7 @@ Please explain what went wrong in a friendly, human-readable way. Help me unders
 2. Why it might have happened  
 3. Possible solutions or next steps
 
-Respond as BuzzleBee in a magical, helpful way! ✨🧚‍♀️`;
+Respond as Irene in a magical, helpful way! ✨🧚‍♀️`;
             }
             
             // Send to Gemini for parsing
@@ -581,7 +581,7 @@ Respond as BuzzleBee in a magical, helpful way! ✨🧚‍♀️`;
                 this.chatMessages.innerHTML = '';
                 
                 // Add welcome message for new chat
-                this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨ This is a fresh new conversation. How can I help you today?');
+                this.addBotMessage('Hello! I\'m Irene, your magical assistant! ✨ This is a fresh new conversation. How can I help you today?');
                 
                 // Focus on input
                 this.chatInput.focus();
@@ -619,34 +619,30 @@ Respond as BuzzleBee in a magical, helpful way! ✨🧚‍♀️`;
                     
                     // If no history, add welcome message
                     if (result.history.length === 0) {
-                        this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨');
-                    }
-                } else {
+                        this.addBotMessage('Hello! I\'m Irene, your magical assistant! ✨');
+                    }                } else {
                     console.log('No chat history to load or error:', result.error);
                     // Clear any existing messages and add welcome message
                     this.chatMessages.innerHTML = '';
-                    this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨');
-                }
-            } else {
+                    this.addBotMessage('Hello! I\'m Irene, your magical assistant! ✨');
+                }            } else {
                 console.log('No current chat ID available');
                 // Clear any existing messages and add welcome message
                 this.chatMessages.innerHTML = '';
-                this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨');
-            }
-        } catch (error) {
+                this.addBotMessage('Hello! I\'m Irene, your magical assistant! ✨');
+            }        } catch (error) {
             console.error('Error loading chat history:', error);
             // Clear any existing messages and add welcome message on error
             this.chatMessages.innerHTML = '';
-            this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨');
+            this.addBotMessage('Hello! I\'m Irene, your magical assistant! ✨');
         }
     }
 
     displayChatHistory(history) {
         this.clearChatMessages();
-        
-        if (history.length === 0) {
+          if (history.length === 0) {
             // Add welcome message for empty chat
-            this.addBotMessage("Hello! I'm BuzzleBee, your magical assistant! ✨");
+            this.addBotMessage("Hello! I'm Irene, your magical assistant! ✨");
             return;
         }
 
@@ -773,11 +769,10 @@ Respond as BuzzleBee in a magical, helpful way! ✨🧚‍♀️`;
                 
                 // Clear current messages and load the selected chat history
                 this.chatMessages.innerHTML = '';
-                
-                if (result.history && result.history.length > 0) {
+                  if (result.history && result.history.length > 0) {
                     this.displayChatHistory(result.history);
                 } else {
-                    this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨');
+                    this.addBotMessage('Hello! I\'m Irene, your magical assistant! ✨');
                 }
                 
                 // Focus on input
@@ -823,5 +818,5 @@ Respond as BuzzleBee in a magical, helpful way! ✨🧚‍♀️`;
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new BuzzleBeeApp();
+    new IreneApp();
 });

@@ -1,5 +1,5 @@
 /**
- * BuzzleBee Response Parser
+ * Irene Response Parser
  * Parses Gemini API responses to extract system commands and other structured data
  */
 

@@ -1,5 +1,5 @@
 /**
- * Enhanced Markdown to HTML converter for BuzzleBee chat messages
+ * Enhanced Markdown to HTML converter for Irene chat messages
  * Properly handles Gemini markdown formatting including ordered lists
  */
 
