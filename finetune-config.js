@@ -26,7 +26,8 @@ class FineTuneConfig {
             AI_TEMPERATURE: "0.7",
             AI_TOP_P: "0.8",
             AI_TOP_K: "40",
-            COMMAND_OUTPUT_PARSER_PROMPT: "You are BuzzleBee, a magical assistant. Please explain this command output in a friendly way."
+            COMMAND_OUTPUT_PARSER_PROMPT: "You are BuzzleBee, a magical assistant. Please explain this command output in a friendly way.",
+            CONVERSATION_SUMMARY_PROMPT: "Please summarize the conversation so far concisely."
         };
     }
 
@@ -81,6 +82,10 @@ class FineTuneConfig {
 
     getCommandOutputParserPrompt() {
         return this.config.COMMAND_OUTPUT_PARSER_PROMPT || "You are BuzzleBee, a magical assistant. Please explain this command output in a friendly way.";
+    }
+
+    getConversationSummaryPrompt() {
+        return this.config.CONVERSATION_SUMMARY_PROMPT || "Please summarize the conversation so far concisely.";
     }
 
     reload() {

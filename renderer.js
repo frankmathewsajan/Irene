@@ -2,6 +2,7 @@ class BuzzleBeeApp {
     constructor() {
         this.isExpanded = false;
         this.parser = new ResponseParser();
+        this.markdownFormatter = new MarkdownFormatter();
         this.initializeElements();
         this.bindEvents();
         this.setupChat();
@@ -11,6 +12,10 @@ class BuzzleBeeApp {
         this.fairyImg = document.getElementById('fairy-img');
         this.minimizeBtn = document.getElementById('minimize-btn');
         this.newChatBtn = document.getElementById('new-chat-btn');
+        this.prevChatsBtn = document.getElementById('prev-chats-btn');
+        this.prevChatsPanel = document.getElementById('prev-chats-panel');
+        this.closePrevChatsBtn = document.getElementById('close-prev-chats');
+        this.prevChatsList = document.getElementById('prev-chats-list');
         this.chatInput = document.getElementById('chat-input');
         this.chatMessages = document.getElementById('chat-messages');
     }    bindEvents() {
@@ -22,6 +27,23 @@ class BuzzleBeeApp {
         
         // New Chat button
         this.newChatBtn.addEventListener('click', () => this.createNewChat());
+        
+        // Previous Chats button
+        if (this.prevChatsBtn) {
+            this.prevChatsBtn.addEventListener('click', () => {
+                console.log('Previous chats button clicked');
+                this.togglePrevChats();
+            });
+        } else {
+            console.error('Previous chats button not found!');
+        }
+        
+        // Close Previous Chats button
+        if (this.closePrevChatsBtn) {
+            this.closePrevChatsBtn.addEventListener('click', () => this.closePrevChats());
+        } else {
+            console.error('Close previous chats button not found!');
+        }
         
         // Send message on Enter key
         this.chatInput.addEventListener('keypress', (e) => {
@@ -83,18 +105,25 @@ class BuzzleBeeApp {
             this.addBotMessage('Sorry, I\'m having trouble connecting right now. Please try again later.');
             console.error('API Error:', error);
         }
-    }    addMessage(text, type) {
+    }    addMessage(text, type, useMarkdown = false) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${type}-message`;
         
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
         
-        const textSpan = document.createElement('span');
-        textSpan.className = 'message-text';
-        textSpan.textContent = text;
+        const textElement = document.createElement('div');
+        textElement.className = 'message-text';
         
-        contentDiv.appendChild(textSpan);
+        if (useMarkdown && type === 'bot') {
+            // Use markdown formatting for bot messages
+            textElement.innerHTML = this.markdownFormatter.toHTML(text);
+        } else {
+            // Plain text for user messages or non-markdown content
+            textElement.textContent = text;
+        }
+        
+        contentDiv.appendChild(textElement);
         messageDiv.appendChild(contentDiv);
         
         this.chatMessages.appendChild(messageDiv);
@@ -104,7 +133,8 @@ class BuzzleBeeApp {
     }
 
     addBotMessage(text) {
-        return this.addMessage(text, 'bot');
+        // Always use markdown formatting for bot messages
+        return this.addMessage(text, 'bot', true);
     }
 
     addTypingIndicator() {
@@ -132,13 +162,16 @@ class BuzzleBeeApp {
             typingElement.parentNode.removeChild(typingElement);
         }
     }    setupChat() {
+        // Load existing chat history
+        this.loadChatHistory();
+        
         // Add some initial sparkle to the interface
         setTimeout(() => {
             if (this.isExpanded) {
                 this.chatInput.focus();
             }
         }, 100);
-    }    async handleBotResponse(response) {
+    }async handleBotResponse(response) {
         console.log('Handling bot response with new parser...');
         
         // Use the parser to analyze the response
@@ -534,6 +567,257 @@ Respond as BuzzleBee in a magical, helpful way! ✨🧚‍♀️`;
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    async createNewChat() {
+        try {
+            console.log('Creating new chat...');
+            const result = await window.electronAPI.createNewChat();
+            
+            if (result.success) {
+                console.log('New chat created with ID:', result.chatId);
+                
+                // Clear current chat display
+                this.chatMessages.innerHTML = '';
+                
+                // Add welcome message for new chat
+                this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨ This is a fresh new conversation. How can I help you today?');
+                
+                // Focus on input
+                this.chatInput.focus();
+            } else {
+                console.error('Failed to create new chat:', result.error);
+                this.addBotMessage('Sorry, I couldn\'t start a new chat right now. Please try again! ✨');
+            }
+        } catch (error) {
+            console.error('Error creating new chat:', error);
+            this.addBotMessage('Oops! Something magical went wrong while starting a new chat. ✨');
+        }
+    }    async loadChatHistory() {
+        try {
+            console.log('Loading chat history...');
+            const currentChatResult = await window.electronAPI.getCurrentChatId();
+            
+            if (currentChatResult.success && currentChatResult.chatId) {
+                const result = await window.electronAPI.loadChat(currentChatResult.chatId);
+                
+                if (result.success && result.history) {
+                    console.log(`Loaded ${result.history.length} messages from history`);
+                    
+                    // Clear current messages (including any existing welcome message)
+                    this.chatMessages.innerHTML = '';
+                    
+                    // Display history messages
+                    for (const message of result.history) {
+                        if (message.role === 'user') {
+                            this.addMessage(message.content, 'user');
+                        } else if (message.role === 'assistant') {
+                            this.addBotMessage(message.content);
+                        }
+                        // Skip system messages (commands) for now in display
+                    }
+                    
+                    // If no history, add welcome message
+                    if (result.history.length === 0) {
+                        this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨');
+                    }
+                } else {
+                    console.log('No chat history to load or error:', result.error);
+                    // Clear any existing messages and add welcome message
+                    this.chatMessages.innerHTML = '';
+                    this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨');
+                }
+            } else {
+                console.log('No current chat ID available');
+                // Clear any existing messages and add welcome message
+                this.chatMessages.innerHTML = '';
+                this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨');
+            }
+        } catch (error) {
+            console.error('Error loading chat history:', error);
+            // Clear any existing messages and add welcome message on error
+            this.chatMessages.innerHTML = '';
+            this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨');
+        }
+    }
+
+    displayChatHistory(history) {
+        this.clearChatMessages();
+        
+        if (history.length === 0) {
+            // Add welcome message for empty chat
+            this.addBotMessage("Hello! I'm BuzzleBee, your magical assistant! ✨");
+            return;
+        }
+
+        // Display all messages from history
+        history.forEach(message => {
+            if (message.role === 'user') {
+                this.addMessage(message.content, 'user');
+            } else if (message.role === 'assistant') {
+                this.addBotMessage(message.content);
+            }
+        });
+    }    // Previous Chats functionality
+    async togglePrevChats() {
+        console.log('togglePrevChats called');
+        const isOpen = this.prevChatsPanel.classList.contains('open');
+        console.log('Panel is currently open:', isOpen);
+        
+        if (isOpen) {
+            this.closePrevChats();
+        } else {
+            await this.openPrevChats();
+        }
+    }    async openPrevChats() {
+        console.log('openPrevChats called');
+        try {
+            // Load all chats
+            console.log('Fetching all chats...');
+            const result = await window.electronAPI.getAllChats();
+            console.log('Received result:', result);
+            
+            if (result.success) {
+                console.log('Received chats:', result.chats);
+                this.displayChatsList(result.chats);
+            } else {
+                console.error('Failed to get chats:', result.error);
+                this.displayChatsList([]);
+            }
+            
+            this.prevChatsPanel.classList.add('open');
+            console.log('Panel opened successfully');
+        } catch (error) {
+            console.error('Error loading chats:', error);
+            this.displayChatsList([]);
+        }
+    }
+
+    closePrevChats() {
+        this.prevChatsPanel.classList.remove('open');
+    }    displayChatsList(chats) {
+        console.log('displayChatsList called with:', chats);
+        this.prevChatsList.innerHTML = '';
+
+        if (chats.length === 0) {
+            console.log('No chats to display, showing empty message');
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'empty-chats';
+            emptyDiv.innerHTML = '<i class="fas fa-comments"></i><br>No previous chats yet';
+            this.prevChatsList.appendChild(emptyDiv);
+            return;
+        }
+
+        console.log('Creating chat items for', chats.length, 'chats');
+        chats.forEach((chat, index) => {
+            console.log(`Creating chat item ${index}:`, chat);
+            const chatItem = this.createChatItem(chat);
+            this.prevChatsList.appendChild(chatItem);
+        });
+        console.log('All chat items created and added');
+    }
+
+    createChatItem(chat) {
+        const chatItem = document.createElement('div');
+        chatItem.className = 'chat-item';
+
+        // Format the date
+        const date = new Date(chat.created_at);
+        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        // Get the title (use generated title or fallback to date)
+        const title = chat.title && !chat.title.startsWith('Chat ') ? 
+                     chat.title : 
+                     `Chat from ${formattedDate}`;
+
+        // Get a preview of the conversation (you might want to fetch the last message)
+        const preview = chat.message_count > 0 ? 
+                       `${chat.message_count} messages` : 
+                       'No messages yet';
+
+        chatItem.innerHTML = `
+            <div class="chat-item-content">
+                <div class="chat-item-title">${title}</div>
+                <div class="chat-item-date">${formattedDate}</div>
+                <div class="chat-item-preview">${preview}</div>
+            </div>
+            <div class="chat-item-actions">
+                <button class="delete-chat-btn" title="Delete Chat">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+
+        // Add click handler to load the chat
+        const content = chatItem.querySelector('.chat-item-content');
+        content.addEventListener('click', () => this.loadSelectedChat(chat.id));
+
+        // Add delete handler
+        const deleteBtn = chatItem.querySelector('.delete-chat-btn');
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent chat loading
+            this.deleteSelectedChat(chat.id);
+        });
+
+        return chatItem;
+    }
+
+    async loadSelectedChat(chatId) {
+        try {
+            console.log('Loading chat:', chatId);
+            const result = await window.electronAPI.loadChat(chatId);
+            
+            if (result.success) {
+                // Close the previous chats panel
+                this.closePrevChats();
+                
+                // Clear current messages and load the selected chat history
+                this.chatMessages.innerHTML = '';
+                
+                if (result.history && result.history.length > 0) {
+                    this.displayChatHistory(result.history);
+                } else {
+                    this.addBotMessage('Hello! I\'m BuzzleBee, your magical assistant! ✨');
+                }
+                
+                // Focus on input
+                this.chatInput.focus();
+            } else {
+                console.error('Failed to load chat:', result.error);
+            }
+        } catch (error) {
+            console.error('Error loading selected chat:', error);
+        }
+    }
+
+    async deleteSelectedChat(chatId) {
+        if (!confirm('Are you sure you want to delete this chat? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            console.log('Deleting chat:', chatId);
+            const result = await window.electronAPI.deleteChat(chatId);
+              if (result.success) {
+                // Refresh the chats list
+                const chatsResult = await window.electronAPI.getAllChats();
+                if (chatsResult.success) {
+                    this.displayChatsList(chatsResult.chats);
+                }
+                
+                // If the deleted chat was the current one, create a new chat
+                const currentChatId = await window.electronAPI.getCurrentChatId();
+                if (currentChatId === chatId) {
+                    await this.createNewChat();
+                }
+            } else {
+                console.error('Failed to delete chat:', result.error);
+                alert('Failed to delete chat. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error deleting chat:', error);
+            alert('Failed to delete chat. Please try again.');
+        }
     }
 }
 

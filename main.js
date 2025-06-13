@@ -39,9 +39,8 @@ async function callGeminiAPI(userMessage) {
                         }
                     ]
                 }
-            ],
-            generationConfig: {
-                maxOutputTokens: Math.floor(config.getMaxResponseLength() / 4),
+            ],            generationConfig: {
+                maxOutputTokens: 2048, // Increased from restrictive calculation
                 temperature: aiSettings.temperature,
                 topP: aiSettings.topP,
                 topK: aiSettings.topK
@@ -161,6 +160,72 @@ async function callGeminiAPI(userMessage) {
     });
 }
 
+// Function to generate conversation summary
+async function generateConversationSummary(history) {
+    try {
+        console.log('Generating conversation summary...');
+        
+        // Create a summary prompt with the conversation
+        let conversationText = 'Conversation to summarize:\n\n';
+        
+        for (const message of history) {
+            if (message.role === 'system') continue; // Skip system messages
+            
+            const roleLabel = message.role === 'user' ? 'User' : 'Assistant';
+            conversationText += `${roleLabel}: ${message.content}\n\n`;
+        }
+        
+        const summaryPrompt = config.getConversationSummaryPrompt() + '\n\n' + conversationText;
+        
+        console.log('Sending summary request to Gemini...');
+        const summaryResponse = await callGeminiAPI(summaryPrompt);
+        
+        if (summaryResponse) {
+            await chatDB.updateConversationSummary(summaryResponse);
+            console.log('Conversation summary updated successfully');
+        }
+    } catch (error) {
+        console.error('Error generating conversation summary:', error);
+    }
+}
+
+async function generateChatTitle() {
+    try {
+        console.log('Generating chat title...');
+        
+        // Get the first few messages for title generation
+        const messages = await chatDB.getMessagesForTitleGeneration();
+        
+        if (messages.length === 0) {
+            console.log('No messages found for title generation');
+            return;
+        }
+        
+        // Create a title generation prompt
+        let conversationText = 'First messages of a conversation:\n\n';
+        
+        for (const message of messages) {
+            const roleLabel = message.role === 'user' ? 'User' : 'Assistant';
+            conversationText += `${roleLabel}: ${message.content}\n\n`;
+        }
+        
+        const titlePrompt = `Please generate a short, descriptive title (2-6 words) for this conversation based on the main topic. Only respond with the title, nothing else.\n\n${conversationText}`;
+        
+        console.log('Sending title generation request to Gemini...');
+        const titleResponse = await callGeminiAPI(titlePrompt);
+        
+        if (titleResponse) {
+            // Clean up the title response (remove quotes, extra whitespace, etc.)
+            const cleanTitle = titleResponse.trim().replace(/^["']|["']$/g, '').substring(0, 50);
+            
+            await chatDB.updateChatTitle(cleanTitle);
+            console.log('Chat title updated successfully:', cleanTitle);
+        }
+    } catch (error) {
+        console.error('Error generating chat title:', error);
+    }
+}
+
 function createWindow() {
     // Get the primary display's work area
     const primaryDisplay = screen.getPrimaryDisplay();
@@ -239,27 +304,51 @@ ipcMain.handle('call-gemini-api', async (event, message) => {
         if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY') {
             console.log('Invalid API key detected');
             throw new Error('Please set your Gemini API key in config.js file');
+        }        // Get chat history for context BEFORE saving the new message
+        const history = await chatDB.getChatHistory(20); // Get more messages for better context
+        console.log(`Retrieved ${history.length} messages from chat history`);
+        
+        // Check if we need to summarize the conversation
+        const needsSummary = await chatDB.needsSummarization();
+        console.log('Needs summarization:', needsSummary);
+        
+        // Generate summary if needed
+        if (needsSummary) {
+            await generateConversationSummary(history);
         }
         
-        // Save user message to database
+        const contextFromHistory = await chatDB.formatHistoryForContext(history);
+        console.log('Context from history length:', contextFromHistory.length);
+        console.log('Context preview:', contextFromHistory.substring(0, 200) + '...');
+        
+        // Save user message to database AFTER getting context
         if (chatDB.currentChatId) {
             await chatDB.addMessage('user', message);
+            console.log('User message saved to database');
         }
         
-        // Get chat history for context
-        const history = await chatDB.getChatHistory(10); // Last 10 messages
-        const contextFromHistory = chatDB.formatHistoryForContext(history);
-        
         // Add context to message if available
-        const messageWithContext = message + contextFromHistory;
+        let messageWithContext = message;
+        if (contextFromHistory.trim().length > 0) {
+            messageWithContext = contextFromHistory + 'Current message:\n' + message;
+        }
+        
+        console.log('Final message length with context:', messageWithContext.length);
         
         console.log('API key valid, calling Gemini API...');
         const response = await callGeminiAPI(messageWithContext);
         console.log('API call successful, response length:', response.length);
-        
-        // Save assistant response to database
+          // Save assistant response to database
         if (chatDB.currentChatId) {
             await chatDB.addMessage('assistant', response);
+            
+            // Check if we need to generate a title for this chat
+            const needsTitle = await chatDB.needsTitleGeneration();
+            console.log('Needs title generation:', needsTitle);
+            
+            if (needsTitle) {
+                await generateChatTitle();
+            }
         }
         
         return { success: true, response };
@@ -306,9 +395,15 @@ ipcMain.handle('execute-command', async (event, command) => {
             maxBuffer: 1024 * 1024, // 1MB max buffer
             encoding: 'utf8'
         };
-        
-        exec(sanitizedCommand, execOptions, (error, stdout, stderr) => {
+          exec(sanitizedCommand, execOptions, async (error, stdout, stderr) => {
             console.log('=== COMMAND EXECUTION COMPLETE ===');
+            
+            // Save command execution to database
+            const commandInfo = JSON.stringify({
+                command: sanitizedCommand,
+                timestamp: new Date().toISOString(),
+                success: !error
+            });
             
             if (error) {
                 console.log('Command failed with error:', error.message);
@@ -317,6 +412,11 @@ ipcMain.handle('execute-command', async (event, command) => {
                 
                 // Include stderr in error message if available
                 const errorMessage = stderr ? `${error.message}\n\nError output:\n${stderr}` : error.message;
+                
+                // Save failed command to database
+                if (chatDB.currentChatId) {
+                    await chatDB.addMessage('system', `Command failed: ${sanitizedCommand}\nError: ${errorMessage}`, 'command_result', commandInfo);
+                }
                 
                 resolve({ 
                     success: false, 
@@ -336,9 +436,16 @@ ipcMain.handle('execute-command', async (event, command) => {
                     output += stderr;
                 }
                 
+                const finalOutput = output || '(Command completed with no output)';
+                
+                // Save successful command to database
+                if (chatDB.currentChatId) {
+                    await chatDB.addMessage('system', `Command executed: ${sanitizedCommand}\nOutput: ${finalOutput}`, 'command_result', commandInfo);
+                }
+                
                 resolve({ 
                     success: true, 
-                    output: output || '(Command completed with no output)',
+                    output: finalOutput,
                     hasStderr: !!stderr
                 });
             }
@@ -429,8 +536,19 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+    // Close database connection before quitting
+    if (chatDB) {
+        chatDB.close();
+    }
     if (process.platform !== 'darwin') {
         app.quit();
+    }
+});
+
+app.on('before-quit', () => {
+    // Ensure database is closed
+    if (chatDB) {
+        chatDB.close();
     }
 });
 

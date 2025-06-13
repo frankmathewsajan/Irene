@@ -1,1 +1,5 @@
 node_modules
+chat_history\conversations.db
+.vscode
+# Ignore Python cache files
+__pycache__/
