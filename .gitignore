@@ -3,3 +3,4 @@ chat_history\conversations.db
 .vscode
 # Ignore Python cache files
 __pycache__/
+config.js
