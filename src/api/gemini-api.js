@@ -9,11 +9,10 @@ class GeminiAPI {
     constructor(config) {
         this.config = config;
         // Fallback order when quota exceeded (prioritize models with available quota)
+        // Note: Live API models excluded - they use different endpoints
         this.modelOrder = [
             'gemini-2.5-flash',              // Primary: 1/10 RPM, 1.43K/250K TPM, 2/250 RPD
             'gemini-2.5-flash-lite',         // Secondary: 1/15 RPM, 1.3K/250K TPM, 4/1K RPD
-            'gemini-2.5-flash-live',         // Live API: Unlimited (0/Unlimited)
-            'gemini-2.0-flash-live',         // Live API: Unlimited (0/Unlimited)
             'gemini-2.0-flash-lite',         // Backup: 0/30 RPM (unused quota)
             'gemini-2.0-flash',              // Fallback: 0/15 RPM (unused quota)
             'gemini-2.5-pro',                // High quality: 0/2 RPM (unused quota)
@@ -102,12 +101,15 @@ class GeminiAPI {
         
         // Add images first (if any)
         if (images && images.length > 0) {
-            for (const imageDataUrl of images) {
+            console.log(`📸 Processing ${images.length} image(s) for API`);
+            for (let i = 0; i < images.length; i++) {
+                const imageDataUrl = images[i];
                 // Extract base64 data from data URL
                 const matches = imageDataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/);
                 if (matches) {
                     const mimeType = `image/${matches[1]}`;
                     const base64Data = matches[2];
+                    console.log(`✅ Image ${i + 1}: ${mimeType}, size: ${base64Data.length} chars`);
                     
                     parts.push({
                         inlineData: {
@@ -115,12 +117,18 @@ class GeminiAPI {
                             data: base64Data
                         }
                     });
+                } else {
+                    console.log(`❌ Image ${i + 1}: Failed to parse data URL`);
                 }
             }
+        } else {
+            console.log('📝 No images to process');
         }
         
         // Add text message
         parts.push({ text: message });
+        
+        console.log(`📦 Request parts: ${parts.length} total (${parts.filter(p => p.inlineData).length} images, ${parts.filter(p => p.text).length} text)`);
         
         const requestBody = {
             contents: [{
@@ -144,15 +152,30 @@ class GeminiAPI {
         // Try current model, fallback to next on quota error
         let attempts = 0;
         const maxAttempts = this.modelOrder.length;
+        let usedManualModel = false;
         
         while (attempts < maxAttempts) {
             try {
-                return await this._makeRequest(apiKey, requestBody);
+                const result = await this._makeRequest(apiKey, requestBody);
+                // Reset manual model after successful request
+                if (this.manualModel && usedManualModel) {
+                    this.manualModel = null;
+                }
+                return result;
             } catch (error) {
                 // Check if it's a quota error
                 if (error.message.includes('quota') || error.message.includes('Quota exceeded')) {
-                    console.log(`⚠️ Model ${this.getCurrentModel()} quota exceeded, trying next model...`);
+                    const failedModel = this.getActiveModel();
+                    console.log(`⚠️ Model ${failedModel} quota exceeded, trying next model...`);
                     this.lastQuotaError = error;
+                    
+                    // If manual model failed, clear it and use rotation
+                    if (this.manualModel) {
+                        console.log('🔄 Manual model failed, switching to auto-rotation');
+                        this.manualModel = null;
+                        usedManualModel = true;
+                    }
+                    
                     this.getNextModel(); // Rotate to next model
                     attempts++;
                     

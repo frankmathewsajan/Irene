@@ -419,6 +419,9 @@ input:checked + .toggle-slider-btn:before {
     outline: none;
     cursor: pointer;
     transition: all 0.2s ease;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .control-select:hover {
@@ -436,6 +439,14 @@ input:checked + .toggle-slider-btn:before {
     background: rgba(20, 30, 40, 0.95);
     color: #ffffff;
     padding: 8px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.control-select optgroup {
+    font-weight: bold;
+    color: var(--theme-primary);
 }
 
 /* Theme Color Buttons */
