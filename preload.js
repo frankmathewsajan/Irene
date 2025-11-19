@@ -4,7 +4,14 @@ const { contextBridge, ipcRenderer } = require('electron');
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
     toggleWindow: () => ipcRenderer.invoke('toggle-window'),
-    sendMessage: (message) => ipcRenderer.invoke('call-gemini-api', message),
+    showWindow: () => ipcRenderer.invoke('show-window'),
+    hideWindow: () => ipcRenderer.invoke('hide-window'),
+    setIgnoreMouse: (ignore) => ipcRenderer.invoke('set-ignore-mouse', ignore),
+    setTransparency: (level) => ipcRenderer.invoke('set-transparency', level),
+    setAlwaysOnTop: (alwaysOnTop) => ipcRenderer.invoke('set-always-on-top', alwaysOnTop),
+    setVibrancy: (type) => ipcRenderer.invoke('set-vibrancy', type),
+    triggerScreenshot: () => ipcRenderer.invoke('trigger-screenshot'),
+    sendMessage: (message, images = [], selectedModel = null) => ipcRenderer.invoke('call-gemini-api', message, images, selectedModel),
     executeCommand: (command) => ipcRenderer.invoke('execute-command', command),
     reloadConfig: () => ipcRenderer.invoke('reload-config'),
     
@@ -13,5 +20,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     loadChat: (chatId) => ipcRenderer.invoke('load-chat', chatId),
     getAllChats: () => ipcRenderer.invoke('get-all-chats'),
     deleteChat: (chatId) => ipcRenderer.invoke('delete-chat', chatId),
-    getCurrentChatId: () => ipcRenderer.invoke('get-current-chat-id')
+    getCurrentChatId: () => ipcRenderer.invoke('get-current-chat-id'),
+    
+    // Persistent user data
+    setUserData: (data) => ipcRenderer.invoke('set-user-data', data),
+    getUserData: () => ipcRenderer.invoke('get-user-data')
 });

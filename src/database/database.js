@@ -11,7 +11,9 @@ class ChatHistoryDB {
     }
 
     ensureDBDirectory() {
-        const chatHistoryDir = path.join(__dirname, 'chat_history');
+        // Go up two levels from src/database/ to project root
+        const projectRoot = path.join(__dirname, '..', '..');
+        const chatHistoryDir = path.join(projectRoot, 'chat_history');
         if (!fs.existsSync(chatHistoryDir)) {
             fs.mkdirSync(chatHistoryDir, { recursive: true });
         }
@@ -398,13 +400,19 @@ class ChatHistoryDB {
     // Close database connection
     close() {
         if (this.db) {
-            this.db.close((err) => {
-                if (err) {
-                    console.error('Error closing database:', err);
-                } else {
-                    console.log('Database connection closed');
-                }
-            });
+            try {
+                this.db.close((err) => {
+                    if (err && err.code !== 'SQLITE_MISUSE') {
+                        console.error('Error closing database:', err);
+                    } else if (!err) {
+                        console.log('Database connection closed');
+                    }
+                });
+                this.db = null; // Prevent double-close attempts
+            } catch (error) {
+                // Gracefully handle if already closed
+                console.log('Database already closed');
+            }
         }
     }
 }

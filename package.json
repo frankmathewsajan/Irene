@@ -5,7 +5,7 @@
   "author": "Frank Mathew Sajan <145902617+frankmathewsajan@users.noreply.github.com>",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^36.4.0"
+    "electron": "38.7.1"
   },
   "scripts": {
     "start": "electron .",

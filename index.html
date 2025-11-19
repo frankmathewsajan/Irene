@@ -1,61 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>    <meta charset="UTF-8">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div id="app">
-        <!-- Fairy Mode -->
-        <div id="fairy-mode" class="mode active">
-            <div class="fairy-container">
-                <img src="fairy.png" alt="" class="fairy-image" id="fairy-img">
-                <div class="glow-effect"></div>
-            </div>
-        </div>        <!-- Chat Mode -->
-        <div id="chat-mode" class="mode">
-            <div class="chat-header">
-                <div class="chat-header-left">
-                    <button class="new-chat-btn" id="new-chat-btn" title="Start New Chat">
-                        <i class="fas fa-plus"></i>
+<body class="ar-overlay">
+    <!-- Draggable Region (Top) -->
+    <div class="drag-region"></div>
+
+    <div id="ar-hud">
+        <!-- Left Panel: Customize -->
+        <div class="left-panel">
+            <!-- Customize Card -->
+            <div class="glass-panel customize-card">
+                <div class="card-header">
+                    <i class="fas fa-palette"></i>
+                    <span>CUSTOMIZE</span>
+                    <button class="collapse-btn" id="collapse-customize-btn" title="Toggle Panel">
+                        <i class="fas fa-chevron-up"></i>
                     </button>
-                    <button class="prev-chats-btn" id="prev-chats-btn" title="Previous Chats">
+                </div>
+                <div class="card-content" id="customize-content">
+                    <div class="customize-control">
+                        <div class="control-label">
+                            <i class="fas fa-paint-brush"></i>
+                            <span>Color Theme</span>
+                        </div>
+                        <div class="theme-options">
+                            <button class="theme-btn active" data-theme="cyber-blue" title="Cyber Blue">
+                                <span class="theme-color" style="background: linear-gradient(135deg, #8ab4f8, #6366f1)"></span>
+                            </button>
+                            <button class="theme-btn" data-theme="neon-purple" title="Neon Purple">
+                                <span class="theme-color" style="background: linear-gradient(135deg, #a78bfa, #ec4899)"></span>
+                            </button>
+                            <button class="theme-btn" data-theme="rose-gold" title="Rose Gold">
+                                <span class="theme-color" style="background: linear-gradient(135deg, #fda4af, #fbbf24)"></span>
+                            </button>
+                            <button class="theme-btn" data-theme="mint-dream" title="Mint Dream">
+                                <span class="theme-color" style="background: linear-gradient(135deg, #86efac, #38bdf8)"></span>
+                            </button>
+                            <button class="theme-btn" data-theme="sunset-orange" title="Sunset Orange">
+                                <span class="theme-color" style="background: linear-gradient(135deg, #fb923c, #f59e0b)"></span>
+                            </button>
+                            <button class="theme-btn" data-theme="ocean-teal" title="Ocean Teal">
+                                <span class="theme-color" style="background: linear-gradient(135deg, #14b8a6, #06b6d4)"></span>
+                            </button>
+                            <button class="theme-btn" data-theme="crimson-red" title="Crimson Red">
+                                <span class="theme-color" style="background: linear-gradient(135deg, #f43f5e, #dc2626)"></span>
+                            </button>
+                            <button class="theme-btn" data-theme="violet-dream" title="Violet Dream">
+                                <span class="theme-color" style="background: linear-gradient(135deg, #8b5cf6, #a855f7)"></span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="customize-control">
+                        <div class="control-label">
+                            <i class="fas fa-brain"></i>
+                            <span>AI Model</span>
+                        </div>
+                        <select class="control-select" id="model-select">
+                            <optgroup label="Gemini 2.5">
+                                <option value="gemini-2.5-flash" selected>2.5 Flash</option>
+                                <option value="gemini-2.5-flash-lite">2.5 Flash Lite</option>
+                                <option value="gemini-2.5-pro">2.5 Pro</option>
+                            </optgroup>
+                            <optgroup label="Gemini 2.0">
+                                <option value="gemini-2.0-flash">2.0 Flash</option>
+                                <option value="gemini-2.0-flash-lite">2.0 Flash Lite</option>
+                                <option value="gemini-2.0-flash-exp">2.0 Flash Exp</option>
+                            </optgroup>
+                            <optgroup label="Live API (Unlimited)">
+                                <option value="gemini-2.5-flash-live">2.5 Flash Live</option>
+                                <option value="gemini-2.0-flash-live">2.0 Flash Live</option>
+                                <option value="gemini-2.5-flash-native-audio-dialog">2.5 Audio Dialog</option>
+                            </optgroup>
+                            <optgroup label="Gemma (Small Models)">
+                                <option value="gemma-3-27b">Gemma 3 27B</option>
+                                <option value="gemma-3-12b">Gemma 3 12B</option>
+                                <option value="gemma-3-4b">Gemma 3 4B</option>
+                                <option value="gemma-3-2b">Gemma 3 2B</option>
+                                <option value="gemma-3-1b">Gemma 3 1B</option>
+                            </optgroup>
+                            <optgroup label="Stable">
+                                <option value="gemini-1.5-flash">1.5 Flash</option>
+                                <option value="gemini-1.5-pro">1.5 Pro</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="customize-control">
+                        <div class="control-label">
+                            <i class="fas fa-eye"></i>
+                            <span>Opacity</span>
+                        </div>
+                        <input type="range" class="control-slider" id="opacity-slider" 
+                               min="30" max="100" value="100" step="5">
+                        <div class="control-value"><span id="opacity-value">100</span>%</div>
+                    </div>
+                    <div class="customize-control">
+                        <div class="control-label">
+                            <i class="fas fa-thumbtack"></i>
+                            <span>Always on Top</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="always-on-top-toggle" checked>
+                            <span class="toggle-slider-btn"></span>
+                        </label>
+                                <option value="gemma-3-4b">Gemma 3 4B</option>
+                                <option value="gemma-3-2b">Gemma 3 2B</option>
+                                <option value="gemma-3-1b">Gemma 3 1B</option>
+                            </optgroup>
+                            <optgroup label="Stable">
+                                <option value="gemini-1.5-flash">1.5 Flash</option>
+                                <option value="gemini-1.5-pro">1.5 Pro</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="customize-control">
+                        <div class="control-label">
+                            <i class="fas fa-eye"></i>
+                            <span>Opacity</span>
+                        </div>
+                        <input type="range" class="control-slider" id="opacity-slider" 
+                               min="30" max="100" value="100" step="5">
+                        <div class="control-value"><span id="opacity-value">100</span>%</div>
+                    </div>
+                    <div class="customize-control">
+                        <div class="control-label">
+                            <i class="fas fa-thumbtack"></i>
+                            <span>Always on Top</span>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="always-on-top-toggle" checked>
+                            <span class="toggle-slider-btn"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Chat & Suggestions -->
+        <div class="right-panel">
+            <div class="glass-panel chat-panel">
+                <div class="panel-header">
+                    <i class="fas fa-comment-dots"></i>
+                    <span>IRENE</span>
+                    <button class="icon-btn" id="prev-chats-btn" title="Chat History">
                         <i class="fas fa-history"></i>
                     </button>
-                </div>
-                <div class="chat-header-right">
-                    <button class="minimize-btn" id="minimize-btn" title="Minimize">
-                        <i class="fas fa-minus"></i>
+                    <button class="icon-btn" id="new-chat-btn" title="New Chat">
+                        <i class="fas fa-plus"></i>
                     </button>
                 </div>
+                
+                <!-- Chat Messages -->
+                <div class="chat-messages" id="chat-messages">
+                    <div class="welcome-message">
+                        <i class="fas fa-sparkles"></i>
+                        <h2>How can I help you?</h2>
+                        <p>Ask me anything — I'm Irene, your assistant</p>
+                    </div>
+                </div>
+
+                <!-- Input Container -->
+                <div class="chat-input-wrapper">
+                    <div>
+                        <input type="text" id="chat-input" placeholder="Type your message..." autofocus>
+                        <button id="send-btn" class="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
-            
-            <!-- Previous Chats Panel -->
-            <div class="prev-chats-panel" id="prev-chats-panel">
-                <div class="prev-chats-header">
-                    <h3><i class="fas fa-history"></i> Previous Chats</h3>
-                    <button class="close-prev-chats" id="close-prev-chats">
+
+            <!-- Previous Chats Panel (Slide-in) -->
+            <div class="glass-panel prev-chats-panel" id="prev-chats-panel">
+                <div class="panel-header">
+                    <i class="fas fa-history"></i>
+                    <span>CHAT HISTORY</span>
+                    <button class="icon-btn" id="close-prev-chats">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 <div class="prev-chats-list" id="prev-chats-list">
-                    <!-- Chat list will be loaded dynamically -->
+                    <!-- Chat list loaded dynamically -->
                 </div>
             </div>
-            
-            <div class="chat-container">
-                <div class="chat-messages" id="chat-messages">
-                    <!-- Messages will be loaded dynamically -->
-                </div>
-                
-                <div class="chat-input-container">
-                    <input type="text" id="chat-input" placeholder="Type your message..." autofocus>
-                </div>
-            </div>
-        </div></div>
-      <script src="parser.js"></script>
-    <script src="markdown-formatter.js"></script>
-    <script src="renderer.js"></script>
+        </div>
+
+        <!-- Bottom Command Bar -->
+        <div class="command-bar">
+            <button class="command-btn" id="voice-btn" title="Voice Input">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <button class="command-btn" id="screenshot-btn" title="Take Screenshot">
+                <i class="fas fa-camera"></i>
+            </button>
+            <button class="command-btn" id="hide-btn" title="Hide Window (ESC)">
+                <i class="fas fa-eye-slash"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Load Scripts -->
+    <script src="src/utils/parser.js"></script>
+    <script src="src/utils/markdown-formatter.js"></script>
+    <script src="src/ui/renderer.js"></script>
 </body>
 </html>
