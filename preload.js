@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setIgnoreMouse: (ignore) => ipcRenderer.invoke('set-ignore-mouse', ignore),
     setTransparency: (level) => ipcRenderer.invoke('set-transparency', level),
     setAlwaysOnTop: (alwaysOnTop) => ipcRenderer.invoke('set-always-on-top', alwaysOnTop),
+    setContentProtection: (isProtected) => ipcRenderer.invoke('set-content-protection', isProtected),
     setVibrancy: (type) => ipcRenderer.invoke('set-vibrancy', type),
     triggerScreenshot: () => ipcRenderer.invoke('trigger-screenshot'),
     sendMessage: (message, images = [], selectedModel = null) => ipcRenderer.invoke('call-gemini-api', message, images, selectedModel),

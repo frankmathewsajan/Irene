@@ -58,6 +58,24 @@ body[data-theme="violet-dream"] {
     --theme-glow: rgba(139, 92, 246, 0.3);
 }
 
+body[data-theme="bubblegum-pink"] {
+    --theme-primary: rgba(255, 105, 180, 0.6);
+    --theme-secondary: rgba(255, 192, 203, 0.6);
+    --theme-glow: rgba(255, 105, 180, 0.3);
+}
+
+body[data-theme="lavender-dream"] {
+    --theme-primary: rgba(221, 160, 221, 0.6);
+    --theme-secondary: rgba(224, 176, 255, 0.6);
+    --theme-glow: rgba(221, 160, 221, 0.3);
+}
+
+body[data-theme="coral-peach"] {
+    --theme-primary: rgba(255, 179, 186, 0.6);
+    --theme-secondary: rgba(255, 223, 186, 0.6);
+    --theme-glow: rgba(255, 179, 186, 0.3);
+}
+
 /* ============================================================================
    Base Styles & Reset
    ============================================================================ */
@@ -103,19 +121,43 @@ body.ar-overlay {
 #ar-hud {
     width: 100vw;
     height: 100vh;
-    padding: 16px 16px 18px 16px;
-    display: grid;
-    grid-template-columns: 240px 1fr;
-    grid-template-rows: 1fr 60px;
+    padding: 16px;
+    display: flex;
     gap: 14px;
     animation: fadeIn 0.6s ease-out;
+    position: relative;
+}
+
+.left-panel {
+    width: 240px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transition: all 0.3s ease;
+}
+
+.left-panel.hidden {
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+    gap: 0;
+    pointer-events: none;
+}
+
+.right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
 }
 
 @keyframes fadeIn {
     from { opacity: 0; transform: scale(0.95); }
     to { opacity: 1; transform: scale(1); }
 }
-
+ 
 /* ============================================================================
    Glass Panel System (Core Component)
    ============================================================================ */
@@ -185,10 +227,10 @@ body.ar-overlay {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 1.8px;
-    color: var(--theme-primary);
+    color: #ffffff;
     text-transform: uppercase;
     margin-bottom: 12px;
-    text-shadow: 0 0 10px var(--theme-glow);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
     position: relative;
 }
 
@@ -200,7 +242,7 @@ body.ar-overlay {
     margin-left: auto;
     background: transparent;
     border: none;
-    color: var(--theme-primary);
+    color: #ffffff;
     cursor: pointer;
     padding: 4px;
     font-size: 12px;
@@ -318,7 +360,7 @@ body.ar-overlay {
 }
 
 .control-label i {
-    color: var(--theme-primary);
+    color: #ffffff;
     font-size: 12px;
 }
 
@@ -350,7 +392,7 @@ body.ar-overlay {
 
 .control-value {
     font-size: 11px;
-    color: var(--theme-primary);
+    color: #ffffff;
     text-align: right;
     font-weight: 600;
 }
@@ -436,17 +478,24 @@ input:checked + .toggle-slider-btn:before {
 }
 
 .control-select option {
-    background: rgba(20, 30, 40, 0.95);
+    background: rgba(30, 40, 50, 0.98);
     color: #ffffff;
-    padding: 8px;
+    padding: 10px 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
+    font-size: 13px;
 }
 
 .control-select optgroup {
-    font-weight: bold;
-    color: var(--theme-primary);
+    font-weight: 700;
+    color: rgba(100, 200, 255, 1);
+    background: rgba(20, 30, 50, 1);
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    padding: 10px 12px;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(100, 200, 255, 0.3);
 }
 
 /* Theme Color Buttons */
@@ -489,8 +538,6 @@ input:checked + .toggle-slider-btn:before {
    ============================================================================ */
 
 .right-panel {
-    grid-column: 2;
-    grid-row: 1;
     position: relative;
     display: flex;
     min-height: 0;
@@ -517,9 +564,13 @@ input:checked + .toggle-slider-btn:before {
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 1.5px;
-    color: var(--theme-primary);
+    color: #ffffff;
     text-transform: uppercase;
-    text-shadow: 0 0 10px var(--theme-glow);
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    -webkit-app-region: drag;
+    cursor: move;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .panel-header i:first-child {
@@ -542,6 +593,7 @@ input:checked + .toggle-slider-btn:before {
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease;
+    -webkit-app-region: no-drag;
 }
 
 .icon-btn:hover {
@@ -549,6 +601,10 @@ input:checked + .toggle-slider-btn:before {
     border-color: rgba(138, 180, 248, 0.4);
     color: rgba(138, 180, 248, 1);
     box-shadow: 0 0 12px rgba(138, 180, 248, 0.3);
+}
+
+#toggle-customize-btn {
+    transition: transform 0.3s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .chat-messages {
@@ -653,15 +709,17 @@ input:checked + .toggle-slider-btn:before {
     backdrop-filter: blur(10px);
     word-wrap: break-word;
     overflow-wrap: break-word;
-    word-break: break-word;
     max-width: 100%;
+    white-space: pre-wrap;
 }
 
 .user-message .message-content {
     background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
-    opacity: 0.4;
+    opacity: 0.95;
     border-color: var(--theme-primary);
     box-shadow: 0 0 16px var(--theme-glow);
+    color: #ffffff;
+    font-weight: 500;
 }
 
 @keyframes messageSlide {
@@ -758,7 +816,7 @@ input:checked + .toggle-slider-btn:before {
     right: 8px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    color: var(--theme-primary);
+    color: #ffffff;
     width: 32px;
     height: 32px;
     border-radius: 8px;
@@ -918,8 +976,6 @@ input:checked + .toggle-slider-btn:before {
    ============================================================================ */
 
 .command-bar {
-    grid-column: 2;
-    grid-row: 2;
     display: flex;
     justify-content: center;
     align-items: center;

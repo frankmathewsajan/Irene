@@ -12,6 +12,7 @@ class IreneARApp {
         this.bindEvents();
         this.setupChat();
         this.initializeVibrancy();
+        this.restoreCustomizePanelState();
     }
 
     // ========================================================================
@@ -40,12 +41,14 @@ class IreneARApp {
         this.opacitySlider = document.getElementById('opacity-slider');
         this.opacityValue = document.getElementById('opacity-value');
         this.alwaysOnTopToggle = document.getElementById('always-on-top-toggle');
+        this.contentProtectionToggle = document.getElementById('content-protection-toggle');
         this.modelSelect = document.getElementById('model-select');
         this.themeButtons = document.querySelectorAll('.theme-btn');
         
-        // Collapse button
-        this.collapseCustomizeBtn = document.getElementById('collapse-customize-btn');
-        this.customizeContent = document.getElementById('customize-content');
+        // Toggle customize button
+        this.toggleCustomizeBtn = document.getElementById('toggle-customize-btn');
+        this.leftPanel = document.querySelector('.left-panel');
+        this.hudContainer = document.getElementById('ar-hud');
     }
 
     bindEvents() {
@@ -75,9 +78,9 @@ class IreneARApp {
             this.hideBtn.addEventListener('click', () => this.hideWindow());
         }
 
-        // Collapse customize panel
-        if (this.collapseCustomizeBtn) {
-            this.collapseCustomizeBtn.addEventListener('click', () => this.toggleCustomizePanel());
+        // Toggle customize panel
+        if (this.toggleCustomizeBtn) {
+            this.toggleCustomizeBtn.addEventListener('click', () => this.toggleCustomizePanel());
         }
 
         // New chat
@@ -101,6 +104,10 @@ class IreneARApp {
         
         if (this.alwaysOnTopToggle) {
             this.alwaysOnTopToggle.addEventListener('change', (e) => this.toggleAlwaysOnTop(e));
+        }
+        
+        if (this.contentProtectionToggle) {
+            this.contentProtectionToggle.addEventListener('change', (e) => this.toggleContentProtection(e));
         }
         
         if (this.modelSelect) {
@@ -156,12 +163,26 @@ class IreneARApp {
     }
 
     toggleCustomizePanel() {
-        if (this.customizeContent) {
-            const isCollapsed = this.customizeContent.classList.toggle('collapsed');
-            const icon = this.collapseCustomizeBtn.querySelector('i');
-            if (icon) {
-                icon.className = isCollapsed ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+        if (!this.leftPanel || !this.hudContainer) return;
+        
+        const isHidden = this.leftPanel.classList.contains('hidden');
+        
+        if (isHidden) {
+            // Show customize panel
+            this.leftPanel.classList.remove('hidden');
+            this.hudContainer.classList.remove('customize-hidden');
+            if (this.toggleCustomizeBtn) {
+                this.toggleCustomizeBtn.style.transform = 'rotate(0deg)';
             }
+            localStorage.setItem('customizePanelVisible', 'true');
+        } else {
+            // Hide customize panel
+            this.leftPanel.classList.add('hidden');
+            this.hudContainer.classList.add('customize-hidden');
+            if (this.toggleCustomizeBtn) {
+                this.toggleCustomizeBtn.style.transform = 'rotate(180deg)';
+            }
+            localStorage.setItem('customizePanelVisible', 'false');
         }
     }
 
@@ -211,6 +232,18 @@ class IreneARApp {
     async initializeVibrancy() {
         // Always use appearance-based vibrancy
         await window.electronAPI.setVibrancy('appearance-based');
+    }
+
+    restoreCustomizePanelState() {
+        const isVisible = localStorage.getItem('customizePanelVisible');
+        // Default to visible if not set
+        if (isVisible === 'false') {
+            this.leftPanel.classList.add('hidden');
+            this.hudContainer.classList.add('customize-hidden');
+            if (this.toggleCustomizeBtn) {
+                this.toggleCustomizeBtn.style.transform = 'rotate(180deg)';
+            }
+        }
     }
 
     // ========================================================================
@@ -581,6 +614,11 @@ class IreneARApp {
     toggleAlwaysOnTop(e) {
         const alwaysOnTop = e.target.checked;
         window.electronAPI.setAlwaysOnTop(alwaysOnTop);
+    }
+
+    toggleContentProtection(e) {
+        const isProtected = e.target.checked;
+        window.electronAPI.setContentProtection(isProtected);
     }
 
     changeModel(e) {

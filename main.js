@@ -90,13 +90,27 @@ function createWindow() {
         show: false,                // Don't show until ready
         title: 'Irene',             // Window title
         titleBarStyle: 'hidden',    // Hide title bar completely
-        backgroundColor: 'rgba(255, 255, 255, 0)', // Fully transparent
+        backgroundColor: 'rgba(0, 0, 0, 0)', // Fully transparent
+        fullscreenable: false,      // Prevent entering fullscreen
+        visibleOnAllWorkspaces: true, // Show on all virtual desktops
+        focusable: false,           // Don't steal focus from other apps
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
         }
     });
+
+    // Make window undetectable in screen recordings
+    mainWindow.setContentProtection(true);
+    
+    // Set window level to stay above fullscreen apps (macOS)
+    if (process.platform === 'darwin') {
+        mainWindow.setAlwaysOnTop(true, 'floating', 1);
+    } else if (process.platform === 'win32') {
+        // Windows: Set to always on top with screen-saver level
+        mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    }
 
     // Apply saved vibrancy effect
     const savedVibrancy = getVibrancyFromStorage();
@@ -163,6 +177,14 @@ ipcMain.handle('set-transparency', (event, level) => {
 ipcMain.handle('set-always-on-top', (event, alwaysOnTop) => {
     mainWindow.setAlwaysOnTop(alwaysOnTop);
     return alwaysOnTop;
+});
+
+/**
+ * Toggle content protection (screen recording prevention)
+ */
+ipcMain.handle('set-content-protection', (event, isProtected) => {
+    mainWindow.setContentProtection(isProtected);
+    return isProtected;
 });
 
 /**
@@ -501,12 +523,22 @@ app.whenReady().then(() => {
 function setupGlobalShortcuts() {
     const { globalShortcut } = require('electron');
     
-    // Register Ctrl+Shift+Space to show window from anywhere
+    // Register Ctrl+Shift+Space to toggle window from anywhere
     try {
         globalShortcut.register('CommandOrControl+Shift+Space', () => {
-            if (mainWindow && !mainWindow.isVisible()) {
-                mainWindow.show();
-                mainWindow.focus();
+            if (mainWindow) {
+                if (mainWindow.isVisible()) {
+                    mainWindow.hide();
+                } else {
+                    // Show window without stealing focus
+                    mainWindow.showInactive();
+                    // Ensure it stays on top even over fullscreen apps
+                    if (process.platform === 'darwin') {
+                        mainWindow.setAlwaysOnTop(true, 'floating', 1);
+                    } else if (process.platform === 'win32') {
+                        mainWindow.setAlwaysOnTop(true, 'screen-saver');
+                    }
+                }
             }
         });
         console.log('Global shortcut registered: Ctrl+Shift+Space');

@@ -8,18 +8,16 @@ const https = require('https');
 class GeminiAPI {
     constructor(config) {
         this.config = config;
-        // Fallback order when quota exceeded (prioritize models with available quota)
-        // Note: Live API models excluded - they use different endpoints
+        // Fallback order when quota exceeded
+        // 2.5 models are multimodal (support images), prioritized for image requests
+        // 2.0 models are backup only
         this.modelOrder = [
-            'gemini-2.5-flash',              // Primary: 1/10 RPM, 1.43K/250K TPM, 2/250 RPD
-            'gemini-2.5-flash-lite',         // Secondary: 1/15 RPM, 1.3K/250K TPM, 4/1K RPD
-            'gemini-2.0-flash-lite',         // Backup: 0/30 RPM (unused quota)
-            'gemini-2.0-flash',              // Fallback: 0/15 RPM (unused quota)
-            'gemini-2.5-pro',                // High quality: 0/2 RPM (unused quota)
-            'gemma-3-27b',                   // Gemma: 0/30 RPM (unused quota)
-            'gemma-3-12b',                   // Gemma: 0/30 RPM (unused quota)
-            'gemini-1.5-flash',              // Stable: Available
-            'gemini-1.5-pro'                 // Last resort: Stable pro model
+            'gemini-2.5-flash',              // Primary: Multimodal, 1/10 RPM
+            'gemini-2.5-flash-lite',         // Secondary: Multimodal, 1/15 RPM
+            'gemini-2.5-pro',                // High quality: Multimodal, 0/2 RPM
+            'gemini-2.0-flash-lite',         // Backup: 0/30 RPM (only when 2.5 exhausted)
+            'gemini-2.0-flash',              // Backup: 0/15 RPM
+            'gemini-2.0-flash-exp'           // Last resort: Experimental
         ];
         this.currentModelIndex = 0;
         this.lastQuotaError = null;
@@ -142,11 +140,18 @@ class GeminiAPI {
             }
         };
 
-        // Auto-switch to multimodal model if images present
+        // Auto-switch to 2.5 models when images are present
         const needsMultimodal = images && images.length > 0;
-        if (needsMultimodal && !this.isMultimodalModel(this.getCurrentModel())) {
-            console.log('🎨 Images detected, ensuring multimodal model...');
-            // Already using multimodal models by default, but log it
+        if (needsMultimodal) {
+            const current = this.getActiveModel();
+            // If using 2.0 model and images present, force switch to 2.5
+            if (current.includes('2.0')) {
+                console.log('🎨 Images detected, switching from 2.0 to 2.5 model...');
+                this.currentModelIndex = 0; // Reset to primary 2.5-flash
+                this.manualModel = null; // Clear manual selection
+            } else {
+                console.log('🎨 Images detected, using 2.5 multimodal model');
+            }
         }
 
         // Try current model, fallback to next on quota error
