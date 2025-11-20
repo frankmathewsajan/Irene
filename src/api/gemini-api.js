@@ -1,5 +1,5 @@
 /**
- * Gemini API Client
+ * Gemini API Client - Optimized
  * Handles all communication with Google's Gemini AI API
  */
 
@@ -8,130 +8,68 @@ const https = require('https');
 class GeminiAPI {
     constructor(config) {
         this.config = config;
-        // Fallback order when quota exceeded
-        // 2.5 models are multimodal (support images), prioritized for image requests
-        // 2.0 models are backup only
         this.modelOrder = [
-            'gemini-2.5-flash',              // Primary: Multimodal, 1/10 RPM
-            'gemini-2.5-flash-lite',         // Secondary: Multimodal, 1/15 RPM
-            'gemini-2.5-pro',                // High quality: Multimodal, 0/2 RPM
-            'gemini-2.0-flash-lite',         // Backup: 0/30 RPM (only when 2.5 exhausted)
-            'gemini-2.0-flash',              // Backup: 0/15 RPM
-            'gemini-2.0-flash-exp'           // Last resort: Experimental
+            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro',
+            'gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-exp'
         ];
+        this.multimodal = new Set([
+            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash',
+            'gemini-2.0-flash-lite', 'gemini-2.5-pro', 'gemini-2.0-flash-exp'
+        ]);
         this.currentModelIndex = 0;
         this.lastQuotaError = null;
-        this.manualModel = null; // Track if user manually selected a model
+        this.manualModel = null;
     }
 
-    /**
-     * Get next available model in rotation
-     */
     getNextModel() {
         this.currentModelIndex = (this.currentModelIndex + 1) % this.modelOrder.length;
         return this.modelOrder[this.currentModelIndex];
     }
 
-    /**
-     * Get current model
-     */
-    getCurrentModel() {
-        return this.modelOrder[this.currentModelIndex];
-    }
+    getCurrentModel() { return this.modelOrder[this.currentModelIndex]; }
+    isMultimodalModel(model) { return this.multimodal.has(model); }
+    getActiveModel() { return this.manualModel || this.getCurrentModel(); }
 
-    /**
-     * Check if model supports multimodal (images/audio)
-     */
-    isMultimodalModel(model) {
-        const multimodalModels = [
-            'gemini-2.5-flash',
-            'gemini-2.5-flash-lite',
-            'gemini-2.0-flash',
-            'gemini-2.0-flash-lite',
-            'gemini-2.5-pro',
-            'gemini-2.0-flash-exp'
-        ];
-        return multimodalModels.includes(model);
-    }
-
-    /**
-     * Set specific model (overrides rotation)
-     */
     setModel(modelName) {
-        // Check if model is in fallback order, if not add it temporarily
-        const index = this.modelOrder.indexOf(modelName);
-        if (index !== -1) {
-            this.currentModelIndex = index;
+        const idx = this.modelOrder.indexOf(modelName);
+        if (idx !== -1) {
+            this.currentModelIndex = idx;
         } else {
-            // User selected a model not in default rotation, use it directly
             this.manualModel = modelName;
         }
-        console.log(`📌 Model manually set to: ${modelName}`);
+        console.log(`📌 Model set: ${modelName}`);
         return true;
     }
 
-    /**
-     * Get the model to use (manual override or current in rotation)
-     */
-    getActiveModel() {
-        return this.manualModel || this.getCurrentModel();
-    }
-
-    /**
-     * Send a message to Gemini API and get response
-     * @param {string} message - The formatted message to send
-     * @param {Array<string>} images - Array of base64 data URLs of images
-     * @returns {Promise<string>} - AI response text
-     */
     async generateContent(message, images = []) {
         const apiKey = this.config.getApiKey();
         
-        // Validate API key
         if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY') {
             throw new Error('Invalid API key. Please configure in config.js');
         }
 
-        // Prepare request body
         const aiSettings = this.config.getAiSettings();
-        
-        // Build parts array with text and images
         const parts = [];
         
-        // Add images first (if any)
-        if (images && images.length > 0) {
-            console.log(`📸 Processing ${images.length} image(s) for API`);
-            for (let i = 0; i < images.length; i++) {
-                const imageDataUrl = images[i];
-                // Extract base64 data from data URL
-                const matches = imageDataUrl.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/);
-                if (matches) {
-                    const mimeType = `image/${matches[1]}`;
-                    const base64Data = matches[2];
-                    console.log(`✅ Image ${i + 1}: ${mimeType}, size: ${base64Data.length} chars`);
-                    
-                    parts.push({
-                        inlineData: {
-                            mimeType: mimeType,
-                            data: base64Data
-                        }
-                    });
+        // Process images
+        if (images?.length > 0) {
+            console.log(`📸 Processing ${images.length} image(s)`);
+            images.forEach((img, i) => {
+                const match = img.match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/);
+                if (match) {
+                    parts.push({ inlineData: { mimeType: `image/${match[1]}`, data: match[2] } });
+                    console.log(`✅ Image ${i + 1}: ${match[1]}, ${match[2].length} chars`);
                 } else {
-                    console.log(`❌ Image ${i + 1}: Failed to parse data URL`);
+                    console.log(`❌ Image ${i + 1}: Parse failed`);
                 }
-            }
-        } else {
-            console.log('📝 No images to process');
+            });
         }
         
-        // Add text message
         parts.push({ text: message });
-        
-        console.log(`📦 Request parts: ${parts.length} total (${parts.filter(p => p.inlineData).length} images, ${parts.filter(p => p.text).length} text)`);
+        console.log(`📦 Parts: ${parts.length} (${parts.filter(p => p.inlineData).length} img, ${parts.filter(p => p.text).length} txt)`);
         
         const requestBody = {
-            contents: [{
-                parts: parts
-            }],
+            contents: [{ parts }],
             generationConfig: {
                 maxOutputTokens: 2048,
                 temperature: aiSettings.temperature,
@@ -140,74 +78,52 @@ class GeminiAPI {
             }
         };
 
-        // Auto-switch to 2.5 models when images are present
-        const needsMultimodal = images && images.length > 0;
-        if (needsMultimodal) {
-            const current = this.getActiveModel();
-            // If using 2.0 model and images present, force switch to 2.5
-            if (current.includes('2.0')) {
-                console.log('🎨 Images detected, switching from 2.0 to 2.5 model...');
-                this.currentModelIndex = 0; // Reset to primary 2.5-flash
-                this.manualModel = null; // Clear manual selection
-            } else {
-                console.log('🎨 Images detected, using 2.5 multimodal model');
-            }
+        // Switch to multimodal model for images
+        if (images?.length > 0 && this.getActiveModel().includes('2.0')) {
+            console.log('🎨 Images detected, switching to 2.5 model');
+            this.currentModelIndex = 0;
+            this.manualModel = null;
         }
 
-        // Try current model, fallback to next on quota error
-        let attempts = 0;
-        const maxAttempts = this.modelOrder.length;
-        let usedManualModel = false;
-        
-        while (attempts < maxAttempts) {
+        // Retry with fallback models
+        let attempts = 0, usedManual = false;
+        while (attempts < this.modelOrder.length) {
             try {
                 const result = await this._makeRequest(apiKey, requestBody);
-                // Reset manual model after successful request
-                if (this.manualModel && usedManualModel) {
-                    this.manualModel = null;
-                }
+                if (this.manualModel && usedManual) this.manualModel = null;
                 return result;
             } catch (error) {
-                // Check if it's a quota error
-                if (error.message.includes('quota') || error.message.includes('Quota exceeded')) {
-                    const failedModel = this.getActiveModel();
-                    console.log(`⚠️ Model ${failedModel} quota exceeded, trying next model...`);
+                if (error.message.includes('quota')) {
+                    console.log(`⚠️ Model ${this.getActiveModel()} quota exceeded`);
                     this.lastQuotaError = error;
                     
-                    // If manual model failed, clear it and use rotation
                     if (this.manualModel) {
-                        console.log('🔄 Manual model failed, switching to auto-rotation');
+                        console.log('🔄 Manual model failed, auto-rotation');
                         this.manualModel = null;
-                        usedManualModel = true;
+                        usedManual = true;
                     }
                     
-                    this.getNextModel(); // Rotate to next model
+                    this.getNextModel();
                     attempts++;
                     
-                    if (attempts >= maxAttempts) {
-                        throw new Error('All models exceeded quota. Please try again later.');
+                    if (attempts >= this.modelOrder.length) {
+                        throw new Error('All models exceeded quota. Try again later.');
                     }
-                    // Continue to next attempt
                 } else {
-                    // Non-quota error, throw immediately
                     throw error;
                 }
             }
         }
     }
 
-    /**
-     * Make HTTPS request to Gemini API
-     * @private
-     */
     _makeRequest(apiKey, requestBody) {
         return new Promise((resolve, reject) => {
             const data = JSON.stringify(requestBody);
-            const currentModel = this.getActiveModel();
+            const model = this.getActiveModel();
             
             const options = {
                 hostname: 'generativelanguage.googleapis.com',
-                path: `/v1beta/models/${currentModel}:generateContent?key=${apiKey}`,
+                path: `/v1beta/models/${model}:generateContent?key=${apiKey}`,
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -215,150 +131,69 @@ class GeminiAPI {
                 }
             };
             
-            console.log(`🤖 Using model: ${currentModel}`);
+            console.log(`🤖 Using: ${model}`);
 
             const req = https.request(options, (res) => {
                 let responseData = '';
-
-                res.on('data', (chunk) => {
-                    responseData += chunk;
-                });
-
+                res.on('data', (chunk) => { responseData += chunk; });
                 res.on('end', () => {
                     try {
-                        const jsonResponse = JSON.parse(responseData);
-
-                        // Check for API error
-                        if (jsonResponse.error) {
-                            reject(new Error(`Gemini API Error: ${jsonResponse.error.message}`));
+                        const json = JSON.parse(responseData);
+                        if (json.error) {
+                            reject(new Error(`Gemini API Error: ${json.error.message}`));
                             return;
                         }
 
-                        // Extract text from response
-                        const text = jsonResponse.candidates?.[0]?.content?.parts?.[0]?.text;
-                        
+                        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
                         if (!text) {
-                            reject(new Error('No text found in API response'));
+                            reject(new Error('No text in API response'));
                             return;
                         }
 
-                        // Extract token usage
-                        const tokenUsage = jsonResponse.usageMetadata || {};
-
-                        // Trim if needed
-                        const maxLength = this.config.getMaxResponseLength();
-                        const trimmedText = text.length > maxLength 
-                            ? text.substring(0, maxLength - 3) + '...'
-                            : text;
-
-                        resolve({ text: trimmedText, tokenUsage });
+                        const maxLen = this.config.getMaxResponseLength();
+                        const trimmed = text.length > maxLen ? text.substring(0, maxLen - 3) + '...' : text;
+                        resolve({ text: trimmed, tokenUsage: json.usageMetadata || {} });
                     } catch (error) {
-                        reject(new Error('Failed to parse API response: ' + error.message));
+                        reject(new Error('Parse failed: ' + error.message));
                     }
                 });
             });
 
-            req.on('error', (error) => {
-                reject(new Error('API request failed: ' + error.message));
-            });
-
+            req.on('error', (err) => { reject(new Error('Request failed: ' + err.message)); });
             req.write(data);
             req.end();
         });
     }
 
-    /**
-     * Generate a conversation summary
-     * @param {Array} history - Chat history messages
-     * @returns {Promise<string>} - Summary text
-     */
     async generateSummary(history) {
-        let conversationText = 'Conversation to summarize:\n\n';
-        
-        for (const message of history) {
-            if (message.role === 'system') continue;
-            const roleLabel = message.role === 'user' ? 'User' : 'Assistant';
-            conversationText += `${roleLabel}: ${message.content}\n\n`;
-        }
-
-        const prompt = this.config.getConversationSummaryPrompt() + '\n\n' + conversationText;
-        const result = await this.generateContent(prompt);
+        let text = 'Conversation to summarize:\n\n';
+        history.forEach(m => {
+            if (m.role !== 'system') {
+                text += `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}\n\n`;
+            }
+        });
+        const result = await this.generateContent(this.config.getConversationSummaryPrompt() + '\n\n' + text);
         return typeof result === 'string' ? result : result.text;
     }
 
-    /**
-     * Generate a chat title from first messages
-     * @param {Array} messages - First few messages
-     * @returns {Promise<string>} - Generated title
-     */
     async generateTitle(messages) {
-        let conversationText = 'First messages of a conversation:\n\n';
-        
-        for (const message of messages) {
-            const roleLabel = message.role === 'user' ? 'User' : 'Assistant';
-            conversationText += `${roleLabel}: ${message.content}\n\n`;
-        }
-
-        const prompt = `Generate a short, descriptive title (2-6 words) for this conversation. Only respond with the title, nothing else.\n\n${conversationText}`;
+        let text = 'First messages:\n\n';
+        messages.forEach(m => {
+            text += `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}\n\n`;
+        });
+        const prompt = `Generate a short title (2-6 words) for this conversation. Only the title:\n\n${text}`;
         const result = await this.generateContent(prompt);
-        const response = typeof result === 'string' ? result : result.text;
-        
-        // Clean up title
-        return response.trim().replace(/^["']|["']$/g, '').substring(0, 50);
+        return (typeof result === 'string' ? result : result.text).trim().replace(/^["']|["']$/g, '').substring(0, 50);
     }
 
-    /**
-     * Parse command output with AI assistance
-     * @param {Object} commandInfo - Command information
-     * @param {Object} result - Execution result
-     * @returns {Promise<string>} - Human-readable explanation
-     */
-    async parseCommandOutput(commandInfo, result) {
-        let prompt;
+    async parseCommandOutput(cmdInfo, result) {
+        const maxLen = result.success ? 2000 : 1000;
+        const output = result.success ? result.output : (result.error || result.stderr || 'Unknown error');
+        const truncated = output.length > maxLen ? output.substring(0, maxLen) + '\n... (truncated)' : output;
 
-        if (result.success && result.output) {
-            // Truncate long outputs
-            const maxLength = 2000;
-            const output = result.output.length > maxLength 
-                ? result.output.substring(0, maxLength) + '\n... (output truncated)'
-                : result.output;
-
-            prompt = `I executed this system command: "${commandInfo.command}"
-
-The command completed successfully with the following output:
-\`\`\`
-${output}
-\`\`\`
-
-Please analyze this output and explain what it means in a friendly, human-readable way. Focus on:
-1. What the command did
-2. What the results show
-3. Any important information or patterns in the output
-4. Whether everything looks normal or if there are any concerns
-
-Respond as Irene in a magical, helpful way! ✨🧚‍♀️`;
-        } else {
-            // Handle errors
-            const errorText = result.error || result.stderr || 'Unknown error occurred';
-            const maxLength = 1000;
-            const error = errorText.length > maxLength
-                ? errorText.substring(0, maxLength) + '\n... (error truncated)'
-                : errorText;
-
-            prompt = `I tried to execute this system command: "${commandInfo.command}"
-
-But it failed with this error:
-\`\`\`
-${error}
-\`\`\`
-
-Please explain what went wrong in a friendly, human-readable way. Help me understand:
-1. What this error means
-2. Why it might have happened  
-3. Possible solutions or next steps
-
-Respond as Irene in a magical, helpful way! ✨🧚‍♀️`;
-        }
+        const prompt = result.success
+            ? `I executed: "${cmdInfo.command}"\n\nOutput:\n\`\`\`\n${truncated}\n\`\`\`\n\nExplain in friendly way:\n1. What it did\n2. What results show\n3. Important info\n4. Any concerns\n\nAs Irene! ✨🧚‍♀️`
+            : `I tried: "${cmdInfo.command}"\n\nError:\n\`\`\`\n${truncated}\n\`\`\`\n\nExplain:\n1. What error means\n2. Why it happened\n3. Solutions\n\nAs Irene! ✨🧚‍♀️`;
 
         const apiResult = await this.generateContent(prompt);
         return typeof apiResult === 'string' ? apiResult : apiResult.text;
