@@ -28,6 +28,7 @@ class IreneARApp {
         // Navigation buttons
         this.newChatBtn = document.getElementById('new-chat-btn');
         this.prevChatsBtn = document.getElementById('prev-chats-btn');
+        this.deleteChatBtn = document.getElementById('delete-chat-btn');
         this.closePrevChatsBtn = document.getElementById('close-prev-chats');
         this.voiceBtn = document.getElementById('voice-btn');
         this.screenshotBtn = document.getElementById('screenshot-btn');
@@ -91,6 +92,11 @@ class IreneARApp {
         // Chat history
         if (this.prevChatsBtn) {
             this.prevChatsBtn.addEventListener('click', () => this.togglePrevChats());
+        }
+
+        // Delete current chat
+        if (this.deleteChatBtn) {
+            this.deleteChatBtn.addEventListener('click', () => this.deleteCurrentChat());
         }
         
         if (this.closePrevChatsBtn) {
@@ -252,6 +258,7 @@ class IreneARApp {
 
     async setupChat() {
         await this.loadChatHistory();
+        await this.updateDeleteButtonState();
     }
 
     async sendMessage() {
@@ -468,6 +475,16 @@ class IreneARApp {
 
     async createNewChat() {
         try {
+            // Check if current chat has messages
+            const currentChatResult = await window.electronAPI.getCurrentChatId();
+            if (currentChatResult.success && currentChatResult.chatId) {
+                const chatData = await window.electronAPI.loadChat(currentChatResult.chatId);
+                if (!chatData.history || chatData.history.length === 0) {
+                    console.log('Current chat is empty, not creating new chat');
+                    return;
+                }
+            }
+
             const result = await window.electronAPI.createNewChat();
             
             if (result.success) {
@@ -479,9 +496,96 @@ class IreneARApp {
                     </div>
                 `;
                 this.chatInput.focus();
+                await this.updateDeleteButtonState();
             }
         } catch (error) {
             console.error('Error creating new chat:', error);
+        }
+    }
+
+    async deleteCurrentChat() {
+        try {
+            // Get current chat ID first
+            const currentChatResult = await window.electronAPI.getCurrentChatId();
+            
+            if (!currentChatResult.success || !currentChatResult.chatId) {
+                console.warn('No current chat to delete');
+                return;
+            }
+
+            // Confirm deletion
+            const confirmed = await this.showDeleteConfirmation();
+            if (!confirmed) return;
+
+            // Delete the chat
+            const result = await window.electronAPI.deleteChat(currentChatResult.chatId);
+            
+            if (result.success) {
+                // Load the latest remaining chat
+                const allChats = await window.electronAPI.getAllChats();
+                if (allChats && allChats.length > 0) {
+                    await window.electronAPI.loadChat(allChats[0].id);
+                    await this.loadChatHistory();
+                } else {
+                    // No chats left, create a new one
+                    await this.createNewChat();
+                }
+                await this.updateDeleteButtonState();
+            } else {
+                console.error('Error deleting chat:', result.error);
+                this.showError('Failed to delete chat: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Error deleting current chat:', error);
+            this.showError('Failed to delete chat');
+        }
+    }
+
+    async showDeleteConfirmation() {
+        return new Promise((resolve) => {
+            const confirmed = confirm('Are you sure you want to delete this chat? This action cannot be undone.');
+            resolve(confirmed);
+        });
+    }
+
+    showError(message) {
+        // Create a temporary error message
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-message';
+        errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+        errorDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff4444;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            z-index: 10000;
+            font-size: 14px;
+        `;
+        
+        document.body.appendChild(errorDiv);
+        
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                errorDiv.parentNode.removeChild(errorDiv);
+            }
+        }, 3000);
+    }
+
+    async updateDeleteButtonState() {
+        try {
+            const currentChatResult = await window.electronAPI.getCurrentChatId();
+            const hasCurrentChat = currentChatResult.success && currentChatResult.chatId;
+            
+            if (this.deleteChatBtn) {
+                this.deleteChatBtn.disabled = !hasCurrentChat;
+                this.deleteChatBtn.style.opacity = hasCurrentChat ? '1' : '0.3';
+                this.deleteChatBtn.title = hasCurrentChat ? 'Delete Current Chat' : 'No Chat to Delete';
+            }
+        } catch (error) {
+            console.error('Error updating delete button state:', error);
         }
     }
 
